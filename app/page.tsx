@@ -1,9 +1,14 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import CharacterSheet from '../components/CharacterSheet';
 import EventLog from '../components/EventLog';
-import { type Character, type LifeEvent } from '../types/game';
+import { type Character, type LifeEvent, type NPC } from '../types/game';
 import LifeSummary from '../components/LifeSummary';
+import RelationshipNetwork from '../components/RelationshipNetwork';
+import { EventChainGenerator } from '../lib/eventChainGenerator';
+import NPCDetailModal from '../components/NPCDetailModal';
+import SkillProgress from '../components/SkillProgress';
+import { EventHandler } from '../lib/eventHandler';
 
 export default function Home() {
   const [character, setCharacter] = useState<Character | null>(null);
@@ -12,6 +17,9 @@ export default function Home() {
   const [isGameOver, setIsGameOver] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [birthYear, setBirthYear] = useState(1900);
+  const latestEventRef = useRef<HTMLDivElement>(null);
+  const [selectedNPC, setSelectedNPC] = useState<NPC | null>(null);
+  const [eventHandler, setEventHandler] = useState<EventHandler | null>(null);
 
   const startGame = async () => {
     try {
@@ -25,6 +33,7 @@ export default function Home() {
       const data = await response.json();
       if (data.character) {
         setCharacter(data.character);
+        setEventHandler(new EventHandler(data.character));
         setEvents([]);
         setCurrentAge(0);
         setIsGameOver(false);
@@ -37,7 +46,7 @@ export default function Home() {
   };
 
   const generateNextEvent = async () => {
-    if (!character || isGameOver) return;
+    if (!character || !eventHandler || isGameOver) return;
 
     try {
       setIsLoading(true);
@@ -58,6 +67,7 @@ export default function Home() {
       const data = await response.json();
       if (data.event) {
         const newEvent = data.event;
+        eventHandler.processEvent(newEvent);
         setEvents(prev => [...prev, newEvent]);
         setCurrentAge(nextAge);
         
@@ -65,6 +75,14 @@ export default function Home() {
           setIsGameOver(true);
         }
       }
+
+      setTimeout(() => {
+        latestEventRef.current?.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 100);
+
     } catch (error) {
       console.error('生成事件失败:', error);
     } finally {
@@ -79,8 +97,13 @@ export default function Home() {
     setIsGameOver(false);
   };
 
+  const handleRelationshipClick = (npc: NPC) => {
+    setSelectedNPC(npc);
+    // 可以在这里添加显示NPC详细信息的逻辑
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4">
+    <div className="min-h-screen bg-gray-100 py-8 px-4 pb-24">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-center mb-8">重生模拟器</h1>
         
@@ -99,8 +122,14 @@ export default function Home() {
         {character && (
           <>
             <CharacterSheet character={character} birthYear={birthYear} />
+            <SkillProgress character={character} />
+            <RelationshipNetwork 
+              character={character}
+              onRelationshipClick={handleRelationshipClick}
+            />
             {!isGameOver ? (
-              <div className="text-center my-6">
+              <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4 flex justify-center items-center gap-4 z-50">
+                <p className="text-gray-600">当前年龄：{currentAge}岁</p>
                 <button
                   onClick={generateNextEvent}
                   disabled={isLoading}
@@ -108,7 +137,6 @@ export default function Home() {
                 >
                   {isLoading ? '生成中...' : '继续生活'}
                 </button>
-                <p className="mt-2 text-gray-600">当前年龄：{currentAge}岁</p>
               </div>
             ) : (
               <LifeSummary 
@@ -117,10 +145,22 @@ export default function Home() {
                 onRestart={restartGame}
               />
             )}
-            {events.length > 0 && <EventLog events={events} />}
+            {events.length > 0 && (
+              <EventLog 
+                events={events} 
+                latestEventRef={latestEventRef}
+              />
+            )}
           </>
         )}
       </div>
+      
+      {selectedNPC && (
+        <NPCDetailModal
+          npc={selectedNPC}
+          onClose={() => setSelectedNPC(null)}
+        />
+      )}
     </div>
   );
 }

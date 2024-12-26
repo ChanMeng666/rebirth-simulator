@@ -1,7 +1,16 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { type Character } from '../../../types/game';
 import { parseCharacterResponse } from '@/lib/parseAIResponse';
-import { getAttributeProbabilities, randomSelect, GENDER_TYPES, SEXUAL_ORIENTATION, RELIGIONS, ETHNICITIES, NATIONALITIES, SOCIAL_CLASSES } from '@/lib/characterConfig';
+import { 
+  getAttributeProbabilities, 
+  randomSelect, 
+  GENDER_TYPES, 
+  SEXUAL_ORIENTATION, 
+  RELIGIONS, 
+  ETHNICITIES, 
+  NATIONALITIES, 
+  SOCIAL_CLASSES 
+} from '@/lib/characterConfig';
 
 // 确保类型定义
 declare global {
@@ -15,85 +24,86 @@ declare global {
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
-function generateCharacterPrompt(character: Character): string {
-  return `
-请根据以下背景信息生成一个角色的详细描述，严格按照以下格式输出：
-
-基本信息：
-性别: ${character.gender}
-性取向: ${character.sexualOrientation}
-外貌: ${character.appearance}
-智力: ${character.intelligence}
-体力: ${character.strength}
-民族: ${character.ethnicity}
-国籍: ${character.nationality}
-宗教信仰: ${character.religion}
-社会阶层: ${character.socialClass}
-
-请按照以下格式生成其他信息：
-
-天赋: [请列出2-3个具体天赋，用顿号分隔]
-性格: [请描述3-4个性格特征，用顿号分隔]
-家庭背景: [请用一句话描述家庭情况]
-
-注意事项：
-1. 必须使用上述格式，包括冒号和方括号
-2. 天赋和性格特征之间使用顿号（、）分隔
-3. 所有描述必须符合角色的背景设定
-4. 考虑人物的各项属性之间的关联性
-5. 确保描述符合角色的文化和社会背景
-`;
-}
-
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    // 随机生成出生年份
-    const birthYear = Math.floor(Math.random() * (2024 - 1900 + 1)) + 1900;
-    const probs = getAttributeProbabilities(birthYear);
-
-    // 生成基础属性
-    const isLGBT = Math.random() < probs.lgbtChance;
-    const isReligious = Math.random() < probs.religiousChance;
-    const isForeign = Math.random() < probs.foreignChance;
-
-    // 生成角色属性
-    const gender = randomSelect(GENDER_TYPES);
-    const sexualOrientation = isLGBT ? randomSelect(SEXUAL_ORIENTATION) : "异性恋";
-    const religion = isReligious ? randomSelect(RELIGIONS) : "无宗教信仰";
-    const ethnicity = randomSelect(ETHNICITIES);
-    const nationality = isForeign ? randomSelect(NATIONALITIES) : "中国";
-    const socialClass = randomSelect(SOCIAL_CLASSES);
-
-    // 生成基础数值
-    const character: Character = {
-      gender,
-      sexualOrientation,
-      appearance: Math.floor(Math.random() * 100) + 1,
-      intelligence: Math.floor(Math.random() * 100) + 1,
-      strength: Math.floor(Math.random() * 100) + 1,
-      ethnicity,
-      nationality,
-      religion,
-      socialClass,
-      talent: [],
-      personality: "",
-      familyBackground: "",
+    const birthYear = 1900 + Math.floor(Math.random() * 123); // 1900-2023
+    
+    // 首先创建基础角色属性
+    const baseCharacter: Partial<Character> = {
+      biologicalSex: randomSelect(GENDER_TYPES),
+      genderIdentity: randomSelect(GENDER_TYPES),
+      sexualOrientation: randomSelect(SEXUAL_ORIENTATION),
+      birthYear,
+      birthPlace: {
+        country: randomSelect(NATIONALITIES),
+      },
+      currentResidence: {
+        country: randomSelect(NATIONALITIES),
+      },
+      familyBackground: {
+        socialClass: randomSelect(['上层', '中上层', '中层', '中下层', '下层']),
+        economicStatus: Math.floor(Math.random() * 100),
+        parentalStatus: randomSelect([
+          '双亲健在',
+          '父亲健在',
+          '母亲健在',
+          '父母离异',
+          '父母均故'
+        ]),
+        familyStructure: randomSelect([
+          '独生子女',
+          '有一个兄弟姐妹',
+          '有多个兄弟姐妹',
+          '大家庭'
+        ]),
+        familyRelations: Math.floor(Math.random() * 100),
+        geneticConditions: []
+      },
+      attributes: {
+        appearance: Math.floor(Math.random() * 100),
+        intelligence: Math.floor(Math.random() * 100),
+        strength: Math.floor(Math.random() * 100),
+        health: Math.floor(Math.random() * 100),
+        luck: Math.floor(Math.random() * 100)
+      },
+      skills: {
+        学术: 10,
+        艺术: 10,
+        体育: 10,
+        社交: 10,
+        实践: 10
+      },
+      status: {
+        education: "未入学",
+        career: "无",
+        wealth: 0, // 将在后面设置
+        reputation: 50,
+        happiness: 50,
+        health: 0, // 将在后面设置
+        relationships: [],
+        diseases: []
+      }
     };
 
-    // 使用AI生成详细描述
-    const prompt = generateCharacterPrompt(character);
+    // 使用AI生成角色的详细信息
+    const prompt = generateCharacterPrompt(baseCharacter as Character);
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
     
     // 解析AI返回的文本
     const parsedCharacter = parseCharacterResponse(text);
+    
+    // 更新状态中依赖于其他属性的值
     const finalCharacter: Character = {
-      ...character,
-      talent: parsedCharacter.talent,
-      personality: parsedCharacter.personality,
-      familyBackground: parsedCharacter.familyBackground
-    };
+      ...baseCharacter,
+      ...parsedCharacter,
+      status: {
+        ...baseCharacter.status,
+        wealth: baseCharacter.familyBackground?.economicStatus || 50,
+        health: baseCharacter.attributes?.health || 100
+      }
+    } as Character;
 
     return Response.json({ character: finalCharacter });
   } catch (error) {
@@ -103,4 +113,42 @@ export async function POST() {
       { status: 500 }
     );
   }
+}
+
+function generateCharacterPrompt(character: Character): string {
+  return `
+请根据以下背景信息生成一个角色的详细描述，严格按照以下格式输出：
+
+基本信息：
+- 性别：${character.biologicalSex}
+- 性取向：${character.sexualOrientation}
+- 出生地：${character.birthPlace.country}
+- 家庭背景：${character.familyBackground.socialClass}
+
+请生成：
+1. 性格特征（1-100）：
+- 开放性
+- 尽责性
+- 外向性
+- 宜人性
+- 神经质
+
+2. 天赋（1-100）：
+- 语言天赋
+- 逻辑思维
+- 空间感知
+- 音乐天赋
+- 身体运动
+- 人际交往
+- 自我认知
+- 自然观察
+
+3. 家庭背景详细描述：
+- 家庭经济状况
+- 父母状况
+- 家庭结构
+- 家庭关系
+- 遗传病史（如有）
+
+请按照以上格式输出，确保每个数值在1-100之间。`;
 } 

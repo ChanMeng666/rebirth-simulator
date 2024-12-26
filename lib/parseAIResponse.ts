@@ -1,56 +1,67 @@
-import { type Character } from '../types/game';
+import { Character } from '../types/game';
 
-interface ParsedResponse {
-  talent: string[];
-  personality: string;
-  familyBackground: string;
+export function parseCharacterResponse(text: string): Partial<Character> {
+  try {
+    // 提取性格特征
+    const personality = {
+      openness: extractNumber(text, '开放性'),
+      conscientiousness: extractNumber(text, '尽责性'),
+      extraversion: extractNumber(text, '外向性'),
+      agreeableness: extractNumber(text, '宜人性'),
+      neuroticism: extractNumber(text, '神经质')
+    };
+
+    // 提取天赋
+    const talents = {
+      linguistic: extractNumber(text, '语言天赋'),
+      logical: extractNumber(text, '逻辑思维'),
+      spatial: extractNumber(text, '空间感知'),
+      musical: extractNumber(text, '音乐天赋'),
+      bodily: extractNumber(text, '身体运动'),
+      interpersonal: extractNumber(text, '人际交往'),
+      intrapersonal: extractNumber(text, '自我认知'),
+      naturalistic: extractNumber(text, '自然观察')
+    };
+
+    // 提取家庭背景信息
+    const familyBackgroundText = text.split('家庭背景详细描述：')[1] || '';
+    const geneticConditions = extractGeneticConditions(familyBackgroundText);
+
+    return {
+      personality,
+      talents,
+      familyBackground: {
+        geneticConditions
+      }
+    };
+  } catch (error) {
+    console.error('解析AI响应时出错:', error);
+    return {};
+  }
 }
 
-export function parseCharacterResponse(text: string): ParsedResponse {
-  // 从文本中提取字符串列表
-  const getTalents = (text: string): string[] => {
-    // 尝试多种可能的格式匹配
-    const patterns = [
-      /天赋[：:]\s*\[(.*?)\]/i,
-      /天赋[：:]\s*(.+?)(?=\n|$)/i,
-      /个人天赋[：:]\s*\[(.*?)\]/i,
-      /个人天赋[：:]\s*(.+?)(?=\n|$)/i
-    ];
-
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
-      if (match && match[1]) {
-        const talents = match[1].split(/[,，、]/).map(t => t.trim());
-        if (talents.filter(t => t.length > 0).length > 0) {
-          return talents;
-        }
-      }
+function extractNumber(text: string, label: string): number {
+  try {
+    const regex = new RegExp(`${label}[：:]*\\s*(\\d+)`);
+    const match = text.match(regex);
+    if (match && match[1]) {
+      const value = parseInt(match[1]);
+      return Math.min(100, Math.max(1, value));
     }
-    return ["普通"];
-  };
+    return 50; // 默认值
+  } catch {
+    return 50;
+  }
+}
 
-  // 从文本中提取描述
-  const getDescription = (text: string, field: string): string => {
-    const patterns = [
-      new RegExp(`${field}[：:]\\s*\\[(.*?)\\]`, 'i'),
-      new RegExp(`${field}[：:]\\s*(.+?)(?=\\n|$)`, 'i')
-    ];
-
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
-      if (match && match[1] && match[1].trim()) {
-        return match[1].trim();
-      }
+function extractGeneticConditions(text: string): string[] {
+  try {
+    const conditions = text.match(/遗传病史[：:]\s*(.+)/);
+    if (conditions && conditions[1] && conditions[1].trim() !== '无') {
+      return conditions[1].split(/[,，、]/);
     }
-    return "未知";
-  };
-
-  // 清理文本，移除可能的干扰字符
-  const cleanText = text.replace(/\r/g, '\n').replace(/\n+/g, '\n');
-
-  return {
-    talent: getTalents(cleanText),
-    personality: getDescription(cleanText, "性格"),
-    familyBackground: getDescription(cleanText, "家庭背景")
-  };
+    return [];
+  } catch {
+    return [];
+  }
 } 

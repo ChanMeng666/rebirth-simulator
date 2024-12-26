@@ -1,20 +1,12 @@
-export const GENDER_TYPES = {
-  CIS_MALE: "顺性男性",
-  CIS_FEMALE: "顺性女性",
-  TRANS_MALE: "跨性别男性",
-  TRANS_FEMALE: "跨性别女性",
-  NON_BINARY: "非二元性别",
-  GENDER_FLUID: "性别流动",
-} as const;
+export const GENDER_TYPES = ['男', '女', '其他'] as const;
 
-export const SEXUAL_ORIENTATION = {
-  STRAIGHT: "异性恋",
-  GAY: "同性恋",
-  LESBIAN: "女同性恋",
-  BISEXUAL: "双性恋",
-  PANSEXUAL: "泛性恋",
-  ASEXUAL: "无性恋",
-} as const;
+export const SEXUAL_ORIENTATION = [
+  '异性恋',
+  '同性恋',
+  '双性恋',
+  '无性恋',
+  '其他'
+] as const;
 
 export const RELIGIONS = {
   NONE: "无宗教信仰",
@@ -39,27 +31,26 @@ export const ETHNICITIES = {
   MONGOL: "蒙古族",
 } as const;
 
-export const SOCIAL_CLASSES = {
-  UPPER: "上层",
-  UPPER_MIDDLE: "中上层",
-  MIDDLE: "中产阶级",
-  LOWER_MIDDLE: "中下层",
-  WORKING: "工薪阶层",
-  RURAL: "农村",
-} as const;
+export const SOCIAL_CLASSES = [
+  '上层',
+  '中上层',
+  '中层',
+  '中下层',
+  '下层'
+] as const;
 
-export const NATIONALITIES = {
-  CHINESE: "中国",
-  AMERICAN: "美国",
-  BRITISH: "英国",
-  JAPANESE: "日本",
-  KOREAN: "韩国",
-  RUSSIAN: "俄罗斯",
-  FRENCH: "法国",
-  GERMAN: "德国",
-  INDIAN: "印度",
-  // 添加更多国籍
-} as const;
+export const NATIONALITIES = [
+  '中国',
+  '美国',
+  '日本',
+  '韩国',
+  '英国',
+  '法国',
+  '德国',
+  '俄罗斯',
+  '加拿大',
+  '澳大利亚'
+] as const;
 
 // 根据时代调整属性生成概率
 export function getAttributeProbabilities(birthYear: number) {

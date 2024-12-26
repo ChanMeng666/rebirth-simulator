@@ -3,9 +3,10 @@ import { type LifeEvent } from '../types/game';
 
 interface EventLogProps {
   events: LifeEvent[];
+  latestEventRef: React.RefObject<HTMLDivElement>;
 }
 
-export default function EventLog({ events }: EventLogProps) {
+export default function EventLog({ events, latestEventRef }: EventLogProps) {
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto mt-6">
       <h2 className="text-2xl font-bold mb-6 text-center border-b pb-2">人生经历</h2>
@@ -13,9 +14,10 @@ export default function EventLog({ events }: EventLogProps) {
         {events.map((event, index) => (
           <div 
             key={index}
+            ref={index === events.length - 1 ? latestEventRef : null}
             className={`p-4 rounded ${
               event.isDeath ? 'bg-red-50' : 'bg-gray-50'
-            }`}
+            } transition-all duration-300`}
           >
             <div className="flex items-center gap-4">
               <span className="text-lg font-semibold">{event.age}岁</span>
